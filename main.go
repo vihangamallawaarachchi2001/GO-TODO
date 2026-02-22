@@ -2,7 +2,9 @@ package main
 
 import (
 	"bufio"
+	"errors"
 	"fmt"
+	"io"
 	"learn/models"
 	"learn/repository"
 	"learn/service"
@@ -37,7 +39,16 @@ func main() {
 
 	for {
 		displayMainMenu()
-		choice := getUserInput(reader, "Choose option: ")
+
+		choice, err := getUserInput(reader, "Choose option: ")
+		if err != nil {
+			if errors.Is(err, io.EOF) {
+				fmt.Println("\nInput stream closed. Exiting safely.")
+				return
+			}
+			fmt.Printf("Input error: %v\n", err)
+			return
+		}
 
 		switch strings.TrimSpace(choice) {
 		case "1":
@@ -60,6 +71,7 @@ func main() {
 		default:
 			fmt.Println("❌ Invalid option. Please try again.")
 		}
+
 		fmt.Println()
 	}
 }
@@ -82,8 +94,14 @@ func displayMainMenu() {
 func createTodoHandler(reader *bufio.Reader) {
 	fmt.Println("\n--- Create New Todo ---")
 
-	title := getUserInput(reader, "Enter title (max 200 chars): ")
-	description := getUserInput(reader, "Enter description (max 1000 chars): ")
+	title,err := getUserInput(reader, "Enter title (max 200 chars): ")
+	if err != nil {
+	return
+}
+	description,err := getUserInput(reader, "Enter description (max 1000 chars): ")
+	if err != nil {
+	return
+}
 
 	todo, err := svc.CreateTodo(strings.TrimSpace(title), strings.TrimSpace(description))
 	if err != nil {
@@ -162,7 +180,10 @@ func updateTodoHandler(reader *bufio.Reader) {
 
 	displayTodos(todos)
 
-	idStr := getUserInput(reader, "Enter todo ID to update: ")
+	idStr, err := getUserInput(reader, "Enter todo ID to update: ")
+	if err != nil {
+	return
+}
 	id, err := strconv.Atoi(strings.TrimSpace(idStr))
 	if err != nil {
 		fmt.Println("❌ Invalid ID format.")
@@ -176,8 +197,14 @@ func updateTodoHandler(reader *bufio.Reader) {
 		return
 	}
 
-	title := getUserInput(reader, "Enter new title: ")
-	description := getUserInput(reader, "Enter new description: ")
+	title , err:= getUserInput(reader, "Enter new title: ")
+	if err != nil {
+	return
+}
+	description, err := getUserInput(reader, "Enter new description: ")
+	if err != nil {
+	return
+}
 
 	err = svc.UpdateTodo(id, strings.TrimSpace(title), strings.TrimSpace(description))
 	if err != nil {
@@ -204,7 +231,10 @@ func deleteTodoHandler(reader *bufio.Reader) {
 
 	displayTodos(todos)
 
-	idStr := getUserInput(reader, "Enter todo ID to delete: ")
+	idStr,err := getUserInput(reader, "Enter todo ID to delete: ")
+	if err != nil {
+	return
+}
 	id, err := strconv.Atoi(strings.TrimSpace(idStr))
 	if err != nil {
 		fmt.Println("❌ Invalid ID format.")
@@ -212,7 +242,10 @@ func deleteTodoHandler(reader *bufio.Reader) {
 	}
 
 	// Confirmation
-	confirm := getUserInput(reader, "Are you sure? (yes/no): ")
+	confirm,err := getUserInput(reader, "Are you sure? (yes/no): ")
+	if err != nil {
+	return
+}
 	if strings.ToLower(strings.TrimSpace(confirm)) != "yes" {
 		fmt.Println("❌ Deletion cancelled.")
 		return
@@ -243,7 +276,10 @@ func toggleTodoStatusHandler(reader *bufio.Reader) {
 
 	displayTodos(todos)
 
-	idStr := getUserInput(reader, "Enter todo ID to toggle: ")
+	idStr,err := getUserInput(reader, "Enter todo ID to toggle: ")
+	if err != nil {
+	return
+}
 	id, err := strconv.Atoi(strings.TrimSpace(idStr))
 	if err != nil {
 		fmt.Println("❌ Invalid ID format.")
@@ -303,8 +339,16 @@ func displayTodos(todos []models.TODO) {
 	fmt.Println("└─────┴──────────────────────┴──────────────────────────┴─────────────┘")
 }
 
-func getUserInput(reader *bufio.Reader, prompt string) string {
+func getUserInput(reader *bufio.Reader, prompt string) (string, error) {
 	fmt.Print(prompt)
-	input, _ := reader.ReadString('\n')
-	return strings.TrimSpace(input)
+
+	input, err := reader.ReadString('\n')
+	if err != nil {
+		if errors.Is(err, io.EOF) {
+			return "", io.EOF
+		}
+		return "", err
+	}
+
+	return strings.TrimSpace(input), nil
 }
